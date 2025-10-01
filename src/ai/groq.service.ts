@@ -25,9 +25,6 @@ export class GroqService {
     const groqConfig = this.configService.get('groq');
     this.apiKey = groqConfig?.apiKey || '';
 
-    // Or get directly from environment
-    // this.apiKey = this.configService.get<string>('GROQ_API_KEY') || '';
-
     if (!this.apiKey) {
       this.logger.error('GROQ_API_KEY is not configured');
       throw new Error('GROQ_API_KEY is required');
@@ -38,35 +35,82 @@ export class GroqService {
 
   private createAnalysisPrompt(cvText: string): string {
     return `
-    You are an expert CV analyzer and career coach. Analyze the following CV thoroughly and provide specific, tailored feedback.
+CRITICAL: You are a professional CV analyst. Analyze this CV in detail and provide SPECIFIC, CONCISE feedback. Be direct and to the point.
 
-    CV CONTENT:
-    ${cvText}
+CV TO ANALYZE:
+${cvText}
 
-    IMPORTANT: Return your analysis in EXACTLY this JSON format - no other text, no explanations:
+ANALYSIS REQUIREMENTS:
+1. Read the ENTIRE CV carefully - every section matters
+2. Score out of 10 based on: content quality, structure, relevance, impact
+3. For each section, give 2-3 SPECIFIC feedback points
+4. Improvements must be ACTIONABLE and SPECIFIC to this CV
+5. Keep all responses SHORT and POINT-FORM
+6. No generic advice - only what applies to THIS CV
 
-    {
-      "summary": "Brief overall assessment of this specific CV's quality, strengths and weaknesses based on the actual content",
-      "experienceFeedback": ["First specific feedback point about THEIR experience section", "Second specific point", "Third specific point"],
-      "skillsFeedback": ["First specific feedback about THEIR skills section", "Second specific point", "Third specific point"],
-      "educationFeedback": ["First specific feedback about THEIR education section", "Second specific point", "Third specific point"],
-      "overallScore": A number from 1 to 10 rating THIS CV's overall quality based on its actual content,
-      "improvements": ["First specific improvement suggestion for THIS CV", "Second specific suggestion", "Third specific suggestion"],
-      "generatedSummary": "A professional 2-3 sentence summary created specifically for this person based on their actual experience and skills",
-      "generatedExperience": "An improved version of THEIR specific experience section using action verbs and quantifiable achievements based on their actual work history"
-    }
+RETURN THIS EXACT JSON FORMAT - NO OTHER TEXT:
 
-    CRITICAL GUIDELINES:
-    1. Analyze THIS specific CV content - don't give generic advice
-    2. If they mention specific technologies, projects, or achievements, reference them
-    3. Tailor all feedback to their actual background and experience level
-    4. If they're a student, give student-appropriate feedback
-    5. If they're senior, give senior-level feedback
-    6. Base the generated summary and experience on THEIR actual content
-    7. Make all feedback specific and actionable for THIS person
+{
+  "summary": "One sentence overall assessment focusing on main strengths and weaknesses",
+  "experienceFeedback": [
+    "Specific issue 1 in experience section",
+    "Specific issue 2 in experience section", 
+    "Missing or weak element in experience"
+  ],
+  "skillsFeedback": [
+    "Specific skills section problem 1",
+    "Specific skills section problem 2",
+    "Missing skills or categorization issue"
+  ],
+  "educationFeedback": [
+    "Specific education section issue 1", 
+    "Specific education section issue 2",
+    "Missing education information"
+  ],
+  "overallScore": 7,
+  "improvements": [
+    "Most critical fix needed (e.g., 'Add metrics to 2nd experience bullet')",
+    "Second most important improvement", 
+    "Third priority improvement",
+    "Quick win improvement"
+  ],
+  "generatedSummary": "2-sentence professional summary based on their actual experience",
+  "generatedExperience": "Improved version of ONE key experience bullet point with action verbs"
+}
 
-    Focus on what's actually in their CV, not generic advice.
-    `;
+SECTION ANALYSIS FOCUS:
+
+EXPERIENCE: Check each job/role for:
+- Action verbs vs passive language
+- Quantifiable achievements (numbers, percentages, results)
+- Missing technologies or tools used
+- Relevance to target roles
+- Chronological order and gaps
+
+SKILLS: Check for:
+- Categorization (technical, soft, tools)
+- Missing relevant skills for their industry
+- Outdated or irrelevant skills
+- Proficiency levels if mentioned
+- ATS optimization
+
+EDUCATION: Check for:
+- Missing dates or institutions
+- Relevant coursework/projects
+- Academic achievements
+- Certifications if applicable
+
+SCORING GUIDE:
+10 = Perfect, needs no changes
+8-9 = Excellent, minor tweaks needed
+6-7 = Good, several improvements needed
+4-5 = Average, major revisions needed
+1-3 = Poor, complete overhaul needed
+
+BE SPECIFIC: Instead of "add metrics" say "Add percentage to 3rd experience bullet about project success"
+BE CONCISE: Maximum 10 words per feedback point
+BE DIRECT: Point to exact sections that need work
+`;
   }
 
   async analyzeCV(cvText: string): Promise<AnalysisResult> {
@@ -78,12 +122,12 @@ export class GroqService {
         throw new Error('Groq API key not configured');
       }
 
-      const prompt = this.createAnalysisPrompt(cvText.substring(0, 12000)); // Limit text length
+      const prompt = this.createAnalysisPrompt(cvText.substring(0, 12000));
 
       const response = await axios.post(
         this.apiUrl,
         {
-          model: 'llama-3.1-8b-instant', // Fast and free model
+          model: 'llama-3.1-8b-instant',
           messages: [
             {
               role: 'user',
@@ -99,7 +143,7 @@ export class GroqService {
             Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
-          timeout: 30000, // 30 seconds timeout
+          timeout: 30000,
         },
       );
 
@@ -108,10 +152,7 @@ export class GroqService {
       const aiResponse = response.data.choices[0].message.content;
       this.logger.debug('Raw AI response:', aiResponse);
 
-      // Parse JSON response
       const parsedResult = JSON.parse(aiResponse);
-
-      // Validate the response structure
       return this.validateResponse(parsedResult);
     } catch (error) {
       this.logger.error(
@@ -138,8 +179,6 @@ export class GroqService {
   }
 
   private validateResponse(parsedResult: any): AnalysisResult {
-    // Only validate structure, don't provide fallback content
-    // This ensures we only return real AI analysis
     if (
       !parsedResult.summary ||
       !Array.isArray(parsedResult.experienceFeedback)
@@ -161,4 +200,4 @@ export class GroqService {
       generatedExperience: parsedResult.generatedExperience,
     };
   }
-} // <-- This closing bracket was missing
+}

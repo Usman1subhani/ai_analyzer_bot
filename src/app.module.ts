@@ -3,8 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CvModule } from './cv/cv.module';
-import { AiService } from './ai/ai.service';
 import configuration from './config/configuration';
+import { GeminiService } from './ai/gimini.service';
 
 @Module({
   imports: [
@@ -15,6 +15,6 @@ import configuration from './config/configuration';
     CvModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AiService],
+  providers: [AppService, GeminiService],
 })
 export class AppModule {}

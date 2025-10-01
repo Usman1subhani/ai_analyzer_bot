@@ -1,91 +1,135 @@
 import { Injectable } from '@nestjs/common';
 import * as mammoth from 'mammoth';
 
-// Fallback PDF parser if pdf-parse fails
-const parsePDFFallback = (buffer: Buffer): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    // Simple text extraction as fallback
-    const text = buffer.toString('utf-8');
-    // Extract readable text (removes binary data)
-    const cleanText = text.replace(/[^\x20-\x7E\n\r\t]/g, '');
-    if (cleanText.length > 100) {
-      resolve(cleanText);
-    } else {
-      reject(new Error('PDF appears to be scanned or image-based'));
-    }
-  });
-};
-
 @Injectable()
 export class FileParserService {
   async parsePDF(buffer: Buffer): Promise<string> {
     try {
-      console.log('Attempting to parse PDF with pdf-parse...');
+      console.log('🔧 Parsing PDF, buffer size:', buffer.length);
 
-      // Dynamic import to avoid issues
-      const pdfParse = await import('pdf-parse');
-      const data = await pdfParse.default(buffer);
+      // Simple text extraction - works for text-based PDFs
+      const text = buffer.toString('utf-8');
 
-      if (data.text && data.text.length > 50) {
-        return data.text;
-      } else {
-        throw new Error('PDF text extraction returned empty or too short text');
+      // Clean the text
+      const cleanText = this.cleanExtractedText(text);
+
+      console.log('📊 PDF parsing result:', {
+        originalLength: text.length,
+        cleanedLength: cleanText.length,
+      });
+
+      if (cleanText.length < 50) {
+        throw new Error(
+          `Only extracted ${cleanText.length} characters. PDF may be scanned or image-based.`,
+        );
       }
+
+      return cleanText;
     } catch (error) {
-      console.log('PDF parse failed, trying fallback method:', error.message);
-      return await parsePDFFallback(buffer);
+      console.error('❌ PDF parsing failed:', error.message);
+      throw new Error(
+        `PDF parsing failed: ${error.message}. Try converting to DOCX format.`,
+      );
     }
   }
 
   async parseDOCX(buffer: Buffer): Promise<string> {
     try {
-      console.log('Parsing DOCX file...');
+      console.log('🔧 Parsing DOCX, buffer size:', buffer.length);
+
       const result = await mammoth.extractRawText({ buffer });
 
-      if (result.value && result.value.length > 50) {
-        return result.value;
-      } else {
+      if (!result.value) {
+        throw new Error('No text content found in DOCX file');
+      }
+
+      const cleanText = this.cleanExtractedText(result.value);
+
+      console.log('📊 DOCX parsing result:', {
+        originalLength: result.value.length,
+        cleanedLength: cleanText.length,
+      });
+
+      if (cleanText.length < 50) {
         throw new Error(
-          'DOCX text extraction returned empty or too short text',
+          `Only extracted ${cleanText.length} characters. File may be empty.`,
         );
       }
+
+      return cleanText;
     } catch (error) {
-      console.error('DOCX parsing error:', error);
+      console.error('❌ DOCX parsing failed:', error.message);
       throw new Error(`DOCX parsing failed: ${error.message}`);
     }
   }
 
   async parseText(buffer: Buffer): Promise<string> {
-    console.log('Parsing TEXT file...');
-    const text = buffer.toString('utf-8');
+    try {
+      console.log('🔧 Parsing TEXT, buffer size:', buffer.length);
 
-    if (text.length < 50) {
-      throw new Error('Text file is too short or empty');
+      const text = buffer.toString('utf-8');
+      const cleanText = this.cleanExtractedText(text);
+
+      console.log('📊 TEXT parsing result:', {
+        originalLength: text.length,
+        cleanedLength: cleanText.length,
+      });
+
+      if (cleanText.length < 50) {
+        throw new Error(
+          `Only extracted ${cleanText.length} characters. File is too short.`,
+        );
+      }
+
+      return cleanText;
+    } catch (error) {
+      console.error('❌ TEXT parsing failed:', error.message);
+      throw new Error(`Text parsing failed: ${error.message}`);
     }
-
-    return text;
   }
 
-  async extractTextFromFile(file: any): Promise<string> {
-    const { originalname, buffer } = file;
+  private cleanExtractedText(text: string): string {
+    return text
+      .replace(/[^\x20-\x7E\n\r\t]/g, ' ') // Remove non-printable characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  }
 
-    console.log('Processing file:', originalname, 'Size:', buffer.length);
+  async extractTextFromFile(file: {
+    originalname: string;
+    buffer: Buffer;
+  }): Promise<string> {
+    console.log('=== File Parser Started ===');
+    console.log('📁 File details:', {
+      originalname: file.originalname,
+      bufferLength: file.buffer.length,
+    });
+
+    if (!file.buffer || !Buffer.isBuffer(file.buffer)) {
+      throw new Error('Invalid file buffer provided to parser');
+    }
+
+    if (file.buffer.length === 0) {
+      throw new Error('File buffer is empty');
+    }
 
     try {
-      if (originalname.toLowerCase().endsWith('.pdf')) {
-        return await this.parsePDF(buffer);
-      } else if (originalname.toLowerCase().endsWith('.docx')) {
-        return await this.parseDOCX(buffer);
-      } else if (originalname.toLowerCase().endsWith('.txt')) {
-        return await this.parseText(buffer);
+      const lowerName = file.originalname.toLowerCase();
+
+      if (lowerName.endsWith('.pdf')) {
+        return await this.parsePDF(file.buffer);
+      } else if (lowerName.endsWith('.docx')) {
+        return await this.parseDOCX(file.buffer);
+      } else if (lowerName.endsWith('.txt')) {
+        return await this.parseText(file.buffer);
       } else {
         throw new Error(
-          'Unsupported file format. Please upload PDF, DOCX, or TXT files.',
+          `Unsupported file format: ${file.originalname}. Please upload PDF, DOCX, or TXT files.`,
         );
       }
     } catch (error) {
-      console.error('File parsing error:', error);
-      throw new Error(`Failed to parse file: ${error.message}`);
+      console.error('❌ File extraction failed:', error.message);
+      throw error;
     }
   }
 }

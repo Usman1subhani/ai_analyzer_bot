@@ -4,8 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CvModule } from './cv/cv.module';
 import configuration from './config/configuration';
-import { GeminiService } from './ai/gimini.service';
-
+import { GroqService } from './ai/groq.service';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -15,6 +14,6 @@ import { GeminiService } from './ai/gimini.service';
     CvModule,
   ],
   controllers: [AppController],
-  providers: [AppService, GeminiService],
+  providers: [AppService, GroqService],
 })
 export class AppModule {}

@@ -33,6 +33,7 @@
     "npm": "^11.6.1",
     "pdf-parse": "^1.1.1",
     "pdf2json": "^3.2.2",
+    "puppeteer": "^24.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

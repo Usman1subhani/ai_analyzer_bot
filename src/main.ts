@@ -7,7 +7,7 @@ async function bootstrap() {
   // Enable CORS for frontend applications
   app.enableCors();
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000); 
   console.log('CV Analyzer Bot running on http://localhost:3000');
 }
 bootstrap();

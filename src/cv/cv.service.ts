@@ -4,6 +4,13 @@ import { GroqService, AnalysisResult } from '../ai/groq.service'; // Use Groq se
 
 @Injectable()
 export class CvService {
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * Constructor for CvService
+ * @param fileParserService - service for extracting text from files
+ * @param aiService - service for interacting with Groq AI
+ */
+/*******  7f6fd12d-0cf5-4b6c-9a9c-76a2aafc82a7  *******/
   constructor(
     private readonly fileParserService: FileParserService,
     private readonly aiService: GroqService, // Use Groq service
